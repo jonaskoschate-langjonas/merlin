@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merlin - AI Assistent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --text: #1f2937;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --priority-overdue: #ec4899;
+            --priority-urgent: #ef4444;
+            --priority-high: #f97316;
+            --priority-medium: #10b981;
+            --priority-low: #3b82f6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar.minimized {
+            width: 60px;
+        }
+
+        .logo {
+            padding: 16px;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar.minimized .logo-text {
+            display: none;
+        }
+
+        .nav-tabs {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .nav-tab {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: none;
+            background: none;
+            color: var(--text);
+            font-size: 14px;
+            transition: all 0.2s;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .nav-tab.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .nav-tab .badge {
+            margin-left: auto;
+            background: var(--primary);
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .sidebar.minimized .nav-tab {
+            padding: 12px;
+            justify-content: center;
+        }
+
+        .sidebar.minimized .nav-tab-label,
+        .sidebar.minimized .badge {
+            display: none;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: white;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 36px;
+        }
+
+        .btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn.primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn.primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: none;
+        }
+
+        .content-area.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bullet-point {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 8px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .bullet-point:hover {
+            background: #f3f4f6;
+        }
+
+        .priority-circle {
+            min-width: 40px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .priority-circle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .priority-overdue {
+            background: var(--priority-overdue);
+        }
+
+        .priority-urgent {
+            background: var(--priority-urgent);
+        }
+
+        .priority-high {
+            background: var(--priority-high);
+        }
+
+        .priority-medium {
+            background: var(--priority-medium);
+        }
+
+        .priority-low {
+            background: var(--priority-low);
+        }
+
+        .bullet-text {
+            flex: 1;
+            padding: 8px;
+            cursor: text;
+            user-select: all;
+        }
+
+        .bullet-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .bullet-point:hover .bullet-actions {
+            opacity: 1;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+            min-height: 28px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-item label {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .setting-item input,
+        .setting-item select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--text);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            animation: slideInUp 0.3s ease;
+            z-index: 1000;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .minimize-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 8px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .checkbox input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9ca3af;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .recording-timer {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-left: 12px;
+        }
+
+        .live-preview {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                width: 60px;
+            }
+
+            .sidebar.minimized {
+                width: 60px;
+            }
+        }
+
+        .success-message {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .note-area {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+            resize: none;
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <span>✨</span>
+                <span class="logo-text">Merlin</span>
+            </div>
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="email">
+                    <span>📧</span>
+                    <span class="nav-tab-label">Email</span>
+                    <span class="badge" id="email-badge">0</span>
+                </button>
+                <button class="nav-tab" data-tab="meeting">
+                    <span>📞</span>
+                    <span class="nav-tab-label">Meeting</span>
+                    <span class="badge" id="meeting-badge">0</span>
+                </button>
+                <button class="nav-tab" data-tab="todo">
+                    <span>✓</span>
+                    <span class="nav-tab-label">ToDo</span>
+                    <span class="badge" id="todo-badge">0</span>
+                </button>
+                <button class="nav-tab" data-tab="settings">
+                    <span>⚙️</span>
+                    <span class="nav-tab-label">Einstellungen</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Email Section -->
+            <div class="content-area active" id="email-area">
+                <div class="toolbar">
+                    <button class="btn primary" id="btn-recognize" title="Email erkennen">
+                        <span>👁️</span>
+                        <span>Erkennen</span>
+                    </button>
+                    <button class="btn disabled" id="btn-summarize" title="Email zusammenfassen">
+                        <span>✨</span>
+                        <span>Zusammenfassen</span>
+                    </button>
+                    <button class="btn" id="btn-read" title="Text vorlesen">
+                        <span>🔊</span>
+                        <span>Vorlesen</span>
+                    </button>
+                    <button class="btn" id="minimize-btn" title="Plugin minimieren">
+                        <span>−</span>
+                    </button>
+                </div>
+                <div class="cards-container" id="email-cards"></div>
+                <div class="empty-state" id="email-empty">
+                    <div class="empty-state-icon">📭</div>
+                    <p>Keine Emails erkannt. Klicke auf "Erkennen" um zu starten.</p>
+                </div>
+            </div>
+
+            <!-- Meeting Section -->
+            <div class="content-area" id="meeting-area">
+                <div class="toolbar">
+                    <button class="btn primary" id="btn-record" title="Aufnahme starten">
+                        <span>🎤</span>
+                        <span>Aufnahme Start</span>
+                    </button>
+                    <button class="btn" id="btn-record-stop" title="Aufnahme beenden" style="display:none;">
+                        <span>⏹️</span>
+                        <span>Aufnahme Stop</span>
+                    </button>
+                    <span class="recording-timer" id="recording-timer" style="display:none;">00:00</span>
+                    <button class="btn" id="btn-notes" title="Notizen hinzufügen">
+                        <span>📝</span>
+                        <span>Notizen</span>
+                    </button>
+                    <button class="btn" id="btn-read-meeting" title="Text vorlesen">
+                        <span>🔊</span>
+                        <span>Vorlesen</span>
+                    </button>
+                    <button class="btn" id="minimize-btn-meeting" title="Plugin minimieren">
+                        <span>−</span>
+                    </button>
+                </div>
+                <div class="live-preview" id="live-preview" style="display:none;">
+                    Aufnahme läuft... Erkannte Inhalte werden hier angezeigt.
+                </div>
+                <div class="cards-container" id="meeting-cards"></div>
+                <div class="empty-state" id="meeting-empty">
+                    <div class="empty-state-icon">📞</div>
+                    <p>Keine Meetings aufgezeichnet. Klicke auf "Aufnahme Start" um zu starten.</p>
+                </div>
+            </div>
+
+            <!-- ToDo Section -->
+            <div class="content-area" id="todo-area">
+                <div class="toolbar">
+                    <button class="btn" id="btn-auto-sort">
+                        <span>📊</span>
+                        <span>Auto-Sortierung</span>
+                    </button>
+                    <button class="btn" id="minimize-btn-todo" title="Plugin minimieren">
+                        <span>−</span>
+                    </button>
+                </div>
+                <div class="cards-container" id="todo-cards"></div>
+                <div class="empty-state" id="todo-empty">
+                    <div class="empty-state-icon">✓</div>
+                    <p>Keine Aufgaben. Verschiebe Emails oder Meetings hierher.</p>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="content-area" id="settings-area">
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label>Sprache</label>
+                        <select id="setting-language">
+                            <option value="de">Deutsch</option>
+                            <option value="en">English</option>
+                            <option value="fr">Français</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Stimme</label>
+                        <select id="setting-voice">
+                            <option value="female">Weiblich</option>
+                            <option value="male">Männlich</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Vorlesegeschwindigkeit</label>
+                        <input type="range" id="setting-speed" min="0.5" max="2" step="0.1" value="1">
+                    </div>
+                    <div class="setting-item">
+                        <label>Lautstärke</label>
+                        <input type="range" id="setting-volume" min="0" max="100" step="10" value="80">
+                    </div>
+                    <div class="setting-item">
+                        <label>Standard-Schreibstil</label>
+                        <select id="setting-style">
+                            <option value="friendly">Freundlich</option>
+                            <option value="professional">Professionell & freundlich</option>
+                            <option value="very-professional">Sehr professionell</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Benachrichtigungen</label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="setting-notifications" checked>
+                            <span>Browser-Notizen aktivieren</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal" id="modal-content"></div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script>
+        // ============================================================================
+        // STATE MANAGEMENT
+        // ============================================================================
+
+        const state = {
+            currentTab: 'email',
+            emails: [],
+            meetings: [],
+            todos: [],
+            isMinimized: false,
+            isRecording: false,
+            recordingTime: 0,
+            settings: {
+                language: 'de',
+                voice: 'female',
+                speed: 1,
+                volume: 80,
+                style: 'friendly',
+                notifications: true
+            }
+        };
+
+        // Load state from localStorage
+        function loadState() {
+            const saved = localStorage.getItem('merlin-state');
+            if (saved) {
+                const loaded = JSON.parse(saved);
+                Object.assign(state, loaded);
+            }
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            localStorage.setItem('merlin-state', JSON.stringify(state));
+        }
+
+        // ============================================================================
+        // UI UTILITIES
+        // ============================================================================
+
+        function switchTab(tabName) {
+            // Hide all content areas
+            document.querySelectorAll('.content-area').forEach(area => {
+                area.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected content area
+            document.getElementById(`${tabName}-area`).classList.add('active');
+
+            // Mark selected tab as active
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            state.currentTab = tabName;
+            saveState();
+        }
+
+        function showToast(message, duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.getElementById('toast-container').appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideInUp 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function showModal(title, content, actions) {
+            const modal = document.getElementById('modal');
+            const modalContent = document.getElementById('modal-content');
+
+            let html = `<h2 class="modal-title">${title}</h2>`;
+            html += `<div class="modal-content">${content}</div>`;
+            html += '<div class="modal-actions">';
+            actions.forEach(action => {
+                html += `<button class="btn ${action.primary ? 'primary' : ''}" onclick="closeModal(); ${action.callback}()">${action.label}</button>`;
+            });
+            html += '</div>';
+
+            modalContent.innerHTML = html;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // ============================================================================
+        // EMAIL FUNCTIONS
+        // ============================================================================
+
+        function createEmailCard(email) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = email.id;
+            card.draggable = true;
+
+            let bulletsHTML = '';
+            email.bullets.forEach((bullet, idx) => {
+                const priority = calculatePriority(bullet.dueDate);
+                bulletsHTML += `
+                    <div class="bullet-point">
+                        <div class="priority-circle priority-${priority.level}" onclick="editPriority('${email.id}', ${idx})">
+                            ${bullet.dueDate || '∞'}
+                        </div>
+                        <div class="bullet-text" onclick="selectText(event)">${escapeHtml(bullet.text)}</div>
+                        <div class="bullet-actions">
+                            <button class="btn btn-small" onclick="editBullet('${email.id}', ${idx})">✏️</button>
+                            <button class="btn btn-small" onclick="removeBullet('${email.id}', ${idx})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span>${email.subject}</span>
+                    <button class="btn btn-small" onclick="moveToTodo('${email.id}')" style="margin-left:auto;">➕</button>
+                </div>
+                <div class="card-body">
+                    ${bulletsHTML}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function addEmail() {
+            const text = prompt('Email-Vorschau eingeben oder erkennen:');
+            if (!text) return;
+
+            const email = {
+                id: Date.now().toString(),
+                subject: 'Email von Absender',
+                text: text,
+                bullets: [{text: text, dueDate: null}]
+            };
+
+            state.emails.push(email);
+            renderEmails();
+            updateBadges();
+            saveState();
+            showToast('Email erkannt und hinzugefügt ✓');
+        }
+
+        function renderEmails() {
+            const container = document.getElementById('email-cards');
+            const empty = document.getElementById('email-empty');
+
+            if (state.emails.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = '';
+            state.emails.forEach(email => {
+                container.appendChild(createEmailCard(email));
+            });
+        }
+
+        function removeBullet(emailId, bulletIdx) {
+            const emailIdx = state.emails.findIndex(e => e.id === emailId);
+            if (emailIdx === -1) return;
+
+            const bullet = state.emails[emailIdx].bullets[bulletIdx];
+            state.emails[emailIdx].bullets.splice(bulletIdx, 1);
+
+            if (state.emails[emailIdx].bullets.length === 0) {
+                state.emails.splice(emailIdx, 1);
+                showToast('Email entfernt (Rückgängig möglich)', 5000);
+            } else {
+                showToast('Bulletpoint entfernt (Rückgängig möglich)', 5000);
+            }
+
+            renderEmails();
+            updateBadges();
+            saveState();
+        }
+
+        function editBullet(emailId, bulletIdx) {
+            const email = state.emails.find(e => e.id === emailId);
+            if (!email) return;
+
+            const newText = prompt('Bulletpoint bearbeiten:', email.bullets[bulletIdx].text);
+            if (newText === null) return;
+
+            email.bullets[bulletIdx].text = newText;
+            renderEmails();
+            saveState();
+        }
+
+        function editPriority(emailId, bulletIdx) {
+            const email = state.emails.find(e => e.id === emailId);
+            if (!email) return;
+
+            showModal(
+                'Priorität & Datum anpassen',
+                `
+                    <div class="setting-item">
+                        <label>Fälligkeitsdatum (Format: TT.MM.)</label>
+                        <input type="text" id="priority-date" value="${email.bullets[bulletIdx].dueDate || ''}" placeholder="z.B. 25.03">
+                    </div>
+                `,
+                [
+                    {
+                        label: 'Speichern',
+                        primary: true,
+                        callback: () => {
+                            const date = document.getElementById('priority-date').value;
+                            email.bullets[bulletIdx].dueDate = date;
+                            renderEmails();
+                            saveState();
+                        }
+                    },
+                    {
+                        label: 'Abbrechen',
+                        callback: () => {}
+                    }
+                ]
+            );
+        }
+
+        function moveToTodo(emailId) {
+            const email = state.emails.find(e => e.id === emailId);
+            if (!email) return;
+
+            const todo = {
+                id: email.id,
+                source: 'email',
+                subject: email.subject,
+                bullets: email.bullets.map(b => ({...b, done: false}))
+            };
+
+            state.todos.push(todo);
+            state.emails = state.emails.filter(e => e.id !== emailId);
+
+            showModal(
+                'Zu ToDo hinzugefügt',
+                'Super! Du findest deine Aufgaben in deiner ToDo-Liste. Sollen wir der Email zusätzlich antworten?',
+                [
+                    {
+                        label: 'Antworten',
+                        primary: true,
+                        callback: () => openReplyWindow(todo.id)
+                    },
+                    {
+                        label: 'Nein',
+                        callback: () => {}
+                    }
+                ]
+            );
+
+            renderEmails();
+            renderTodos();
+            updateBadges();
+            saveState();
+        }
+
+        // ============================================================================
+        // MEETING FUNCTIONS
+        // ============================================================================
+
+        let recordingInterval = null;
+
+        function startRecording() {
+            state.isRecording = true;
+            state.recordingTime = 0;
+            document.getElementById('btn-record').style.display = 'none';
+            document.getElementById('btn-record-stop').style.display = 'flex';
+            document.getElementById('recording-timer').style.display = 'inline';
+            document.getElementById('live-preview').style.display = 'block';
+
+            recordingInterval = setInterval(() => {
+                state.recordingTime++;
+                const mins = Math.floor(state.recordingTime / 60).toString().padStart(2, '0');
+                const secs = (state.recordingTime % 60).toString().padStart(2, '0');
+                document.getElementById('recording-timer').textContent = `${mins}:${secs}`;
+            }, 1000);
+
+            showToast('Aufnahme gestartet... 🎤');
+        }
+
+        function stopRecording() {
+            clearInterval(recordingInterval);
+            state.isRecording = false;
+            document.getElementById('btn-record').style.display = 'flex';
+            document.getElementById('btn-record-stop').style.display = 'none';
+            document.getElementById('recording-timer').style.display = 'none';
+            document.getElementById('live-preview').style.display = 'none';
+
+            const meeting = {
+                id: Date.now().toString(),
+                subject: 'Meeting vom ' + new Date().toLocaleDateString('de-DE'),
+                bullets: [
+                    {text: 'Wichtiger Punkt 1', dueDate: '26.03'},
+                    {text: 'Wichtiger Punkt 2', dueDate: null}
+                ]
+            };
+
+            state.meetings.push(meeting);
+            renderMeetings();
+            updateBadges();
+            saveState();
+            showToast('Meeting verarbeitet ✓');
+        }
+
+        function createMeetingCard(meeting) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = meeting.id;
+            card.draggable = true;
+
+            let bulletsHTML = '';
+            meeting.bullets.forEach((bullet, idx) => {
+                const priority = calculatePriority(bullet.dueDate);
+                bulletsHTML += `
+                    <div class="bullet-point">
+                        <div class="priority-circle priority-${priority.level}" onclick="editPriority('${meeting.id}', ${idx})">
+                            ${bullet.dueDate || '∞'}
+                        </div>
+                        <div class="bullet-text">${escapeHtml(bullet.text)}</div>
+                        <div class="bullet-actions">
+                            <button class="btn btn-small" onclick="editBullet('${meeting.id}', ${idx})">✏️</button>
+                            <button class="btn btn-small" onclick="removeMeetingBullet('${meeting.id}', ${idx})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span>${meeting.subject}</span>
+                    <button class="btn btn-small" onclick="moveToTodoMeeting('${meeting.id}')" style="margin-left:auto;">➕</button>
+                </div>
+                <div class="card-body">
+                    ${bulletsHTML}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function renderMeetings() {
+            const container = document.getElementById('meeting-cards');
+            const empty = document.getElementById('meeting-empty');
+
+            if (state.meetings.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = '';
+            state.meetings.forEach(meeting => {
+                container.appendChild(createMeetingCard(meeting));
+            });
+        }
+
+        function removeMeetingBullet(meetingId, bulletIdx) {
+            const meetingIdx = state.meetings.findIndex(m => m.id === meetingId);
+            if (meetingIdx === -1) return;
+
+            state.meetings[meetingIdx].bullets.splice(bulletIdx, 1);
+
+            if (state.meetings[meetingIdx].bullets.length === 0) {
+                state.meetings.splice(meetingIdx, 1);
+            }
+
+            renderMeetings();
+            updateBadges();
+            saveState();
+            showToast('Bulletpoint entfernt (Rückgängig möglich)', 5000);
+        }
+
+        function moveToTodoMeeting(meetingId) {
+            const meeting = state.meetings.find(m => m.id === meetingId);
+            if (!meeting) return;
+
+            const todo = {
+                id: meeting.id,
+                source: 'meeting',
+                subject: meeting.subject,
+                bullets: meeting.bullets.map(b => ({...b, done: false}))
+            };
+
+            state.todos.push(todo);
+            state.meetings = state.meetings.filter(m => m.id !== meetingId);
+
+            showModal(
+                'Zu ToDo hinzugefügt',
+                'Meisterhaft! Diese Aufgaben sind kein Hindernis für dich. Sollen wir eine E-Mail-Antwort verfassen?',
+                [
+                    {
+                        label: 'Ja',
+                        primary: true,
+                        callback: () => openReplyWindow(todo.id)
+                    },
+                    {
+                        label: 'Nein',
+                        callback: () => {}
+                    }
+                ]
+            );
+
+            renderMeetings();
+            renderTodos();
+            updateBadges();
+            saveState();
+        }
+
+        // ============================================================================
+        // TODO FUNCTIONS
+        // ============================================================================
+
+        function createTodoCard(todo, todoIdx) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = todo.id;
+            card.draggable = true;
+
+            const completedCount = todo.bullets.filter(b => b.done).length;
+            const totalCount = todo.bullets.length;
+            const progress = (completedCount / totalCount) * 100;
+
+            let bulletsHTML = '';
+            todo.bullets.forEach((bullet, idx) => {
+                const priority = calculatePriority(bullet.dueDate);
+                bulletsHTML += `
+                    <div class="bullet-point">
+                        <input type="checkbox" ${bullet.done ? 'checked' : ''} onchange="toggleTodoBullet('${todo.id}', ${idx})">
+                        <div class="priority-circle priority-${priority.level}">
+                            ${bullet.dueDate || '∞'}
+                        </div>
+                        <div class="bullet-text">${escapeHtml(bullet.text)}</div>
+                        <div class="bullet-actions">
+                            <button class="btn btn-small" onclick="removeTodoBullet('${todo.id}', ${idx})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const isComplete = completedCount === totalCount;
+
+            card.innerHTML = `
+                <div class="card-header" style="border-bottom: 3px solid ${isComplete ? 'var(--success)' : 'transparent'}">
+                    <span>${todo.subject}</span>
+                </div>
+                <div style="font-size: 12px; margin-bottom: 8px; color: #6b7280;">${completedCount}/${totalCount} ✓</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress}%"></div>
+                </div>
+                <div class="card-body">
+                    ${bulletsHTML}
+                </div>
+                <button class="btn" onclick="completeTodo('${todo.id}')" style="margin-top: 12px; width: 100%;">Abgeschlossen</button>
+            `;
+
+            return card;
+        }
+
+        function renderTodos() {
+            const container = document.getElementById('todo-cards');
+            const empty = document.getElementById('todo-empty');
+
+            if (state.todos.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = '';
+            state.todos.forEach((todo, idx) => {
+                container.appendChild(createTodoCard(todo, idx));
+            });
+        }
+
+        function toggleTodoBullet(todoId, bulletIdx) {
+            const todo = state.todos.find(t => t.id === todoId);
+            if (!todo) return;
+
+            todo.bullets[bulletIdx].done = !todo.bullets[bulletIdx].done;
+            renderTodos();
+            saveState();
+        }
+
+        function removeTodoBullet(todoId, bulletIdx) {
+            const todo = state.todos.find(t => t.id === todoId);
+            if (!todo) return;
+
+            todo.bullets.splice(bulletIdx, 1);
+
+            if (todo.bullets.length === 0) {
+                state.todos = state.todos.filter(t => t.id !== todoId);
+            }
+
+            renderTodos();
+            updateBadges();
+            saveState();
+            showToast('Aufgabe entfernt (Rückgängig möglich)', 5000);
+        }
+
+        function completeTodo(todoId) {
+            const todo = state.todos.find(t => t.id === todoId);
+            if (!todo) return;
+
+            const allDone = todo.bullets.every(b => b.done);
+
+            if (!allDone) {
+                showModal(
+                    'Aufgaben noch nicht abgeschlossen',
+                    'Möchtest du diese Aufgaben wirklich entfernen?',
+                    [
+                        {
+                            label: 'Ja',
+                            primary: true,
+                            callback: () => {
+                                state.todos = state.todos.filter(t => t.id !== todoId);
+                                renderTodos();
+                                updateBadges();
+                                saveState();
+                                showToast('Aufgaben entfernt (Rückgängig möglich)', 5000);
+                            }
+                        },
+                        {
+                            label: 'Nein',
+                            callback: () => {}
+                        }
+                    ]
+                );
+                return;
+            }
+
+            const messageMap = {
+                email: 'Meisterhaft! Diese Aufgaben sind kein Hindernis für dich. Sollen wir der Email antworten?',
+                meeting: 'Meisterhaft! Diese Aufgaben sind kein Hindernis für dich.'
+            };
+
+            const actionMap = {
+                email: [
+                    {
+                        label: 'Antworten',
+                        primary: true,
+                        callback: () => openReplyWindow(todoId)
+                    },
+                    {
+                        label: 'Nein',
+                        callback: () => {
+                            state.todos = state.todos.filter(t => t.id !== todoId);
+                            renderTodos();
+                            updateBadges();
+                            saveState();
+                        }
+                    }
+                ],
+                meeting: [
+                    {
+                        label: 'Stimmt',
+                        primary: true,
+                        callback: () => {
+                            state.todos = state.todos.filter(t => t.id !== todoId);
+                            renderTodos();
+                            updateBadges();
+                            saveState();
+                        }
+                    }
+                ]
+            };
+
+            showModal(
+                'Aufgabe abgeschlossen',
+                messageMap[todo.source] || messageMap.meeting,
+                actionMap[todo.source] || actionMap.meeting
+            );
+        }
+
+        // ============================================================================
+        // UTILITY FUNCTIONS
+        // ============================================================================
+
+        function calculatePriority(dateStr) {
+            if (!dateStr) return {level: 'medium', label: 'Unbekannt'};
+
+            const [day, month] = dateStr.split('.').map(Number);
+            const today = new Date();
+            const dueDate = new Date(today.getFullYear(), month - 1, day);
+
+            const diff = dueDate - today;
+            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+            if (days < 0) return {level: 'overdue', label: 'Überfällig'};
+            if (days <= 1) return {level: 'urgent', label: 'Dringend'};
+            if (days <= 7) return {level: 'high', label: 'Hoch'};
+            if (days <= 14) return {level: 'medium', label: 'Mittel'};
+            return {level: 'low', label: 'Niedrig'};
+        }
+
+        function updateBadges() {
+            document.getElementById('email-badge').textContent = state.emails.length;
+            document.getElementById('meeting-badge').textContent = state.meetings.length;
+            document.getElementById('todo-badge').textContent = state.todos.length;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function selectText(event) {
+            const range = document.createRange();
+            range.selectNodeContents(event.currentTarget);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        function openReplyWindow(todoId) {
+            const todo = state.todos.find(t => t.id === todoId);
+            if (!todo) return;
+
+            let bulletsHTML = todo.bullets.map((b, idx) => `<div>• ${escapeHtml(b.text)}</div>`).join('');
+
+            showModal(
+                'Antwort verfassen',
+                `
+                    <div class="setting-item">
+                        <label>Schreibstil</label>
+                        <select id="reply-style">
+                            <option value="friendly">Freundlich</option>
+                            <option value="professional">Professionell & freundlich</option>
+                            <option value="very-professional">Sehr professionell</option>
+                        </select>
+                    </div>
+                    <div style="margin: 16px 0; padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
+                        <strong>Kontextinformationen:</strong>
+                        ${bulletsHTML}
+                    </div>
+                    <div class="setting-item">
+                        <label>Deine Nachricht</label>
+                        <textarea id="reply-text" placeholder="Deine Antwort hier..." rows="4"></textarea>
+                    </div>
+                `,
+                [
+                    {
+                        label: 'Antwort generieren',
+                        primary: true,
+                        callback: () => {
+                            const style = document.getElementById('reply-style').value;
+                            const userText = document.getElementById('reply-text').value;
+                            const generatedReply = generateReply(todo.bullets, style, userText);
+
+                            showModal(
+                                'Generierte Antwort',
+                                `
+                                    <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px; margin-bottom: 16px; max-height: 300px; overflow-y: auto;">
+                                        ${escapeHtml(generatedReply).replace(/\n/g, '<br>')}
+                                    </div>
+                                `,
+                                [
+                                    {
+                                        label: 'Kopieren',
+                                        primary: true,
+                                        callback: () => {
+                                            navigator.clipboard.writeText(generatedReply);
+                                            showToast('Antwort kopiert ✓');
+                                        }
+                                    }
+                                ]
+                            );
+                        }
+                    }
+                ]
+            );
+        }
+
+        function generateReply(bullets, style, userText) {
+            const styleTexts = {
+                friendly: 'Danke für deine Nachricht! ',
+                professional: 'Vielen Dank für Ihre Mitteilung. ',
+                'very-professional': 'Ich danke Ihnen für Ihre Nachricht. '
+            };
+
+            let reply = styleTexts[style];
+            reply += 'Ich habe folgende Punkte berücksichtigt:\n\n';
+            bullets.forEach(b => {
+                reply += `• ${b.text}\n`;
+            });
+            if (userText) {
+                reply += `\n${userText}`;
+            }
+
+            return reply;
+        }
+
+        // ============================================================================
+        // EVENT LISTENERS
+        // ============================================================================
+
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+
+        document.getElementById('btn-recognize').addEventListener('click', addEmail);
+        document.getElementById('btn-record').addEventListener('click', startRecording);
+        document.getElementById('btn-record-stop').addEventListener('click', stopRecording);
+        document.getElementById('minimize-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('minimized');
+        });
+        document.getElementById('minimize-btn-meeting').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('minimized');
+        });
+        document.getElementById('minimize-btn-todo').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('minimized');
+        });
+
+        // Load state on startup
+        loadState();
+        renderEmails();
+        renderMeetings();
+        renderTodos();
+        updateBadges();
+        switchTab(state.currentTab);
+    </script>
+</body>
+</html>
