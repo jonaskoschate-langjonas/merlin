@@ -935,8 +935,62 @@
         // ============================================================================
 
         let recordingInterval = null;
+        let recognitionInstance = null;
+        let recognizedText = '';
+
+        // Initialize Web Speech API
+        function initializeSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                showToast('Spracherkennung wird von diesem Browser nicht unterstützt ❌');
+                return null;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'de-DE';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                recognizedText = '';
+            };
+
+            recognition.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        recognizedText += transcript + ' ';
+                    } else {
+                        interim += transcript;
+                    }
+                }
+                const preview = document.getElementById('live-preview');
+                if (preview) {
+                    preview.textContent = 'Aufnahme läuft... ' + (recognizedText + interim);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                showToast('Spracherkennungsfehler: ' + event.error + ' ❌');
+            };
+
+            recognition.onend = () => {
+                // Recognition ended
+            };
+
+            return recognition;
+        }
 
         function startRecording() {
+            if (!recognitionInstance) {
+                recognitionInstance = initializeSpeechRecognition();
+            }
+
+            if (!recognitionInstance) {
+                return;
+            }
+
             state.isRecording = true;
             state.recordingTime = 0;
             document.getElementById('btn-record').style.display = 'none';
@@ -951,10 +1005,15 @@
                 document.getElementById('recording-timer').textContent = `${mins}:${secs}`;
             }, 1000);
 
+            recognitionInstance.start();
             showToast('Aufnahme gestartet... 🎤');
         }
 
         function stopRecording() {
+            if (recognitionInstance) {
+                recognitionInstance.stop();
+            }
+
             clearInterval(recordingInterval);
             state.isRecording = false;
             document.getElementById('btn-record').style.display = 'flex';
@@ -962,13 +1021,17 @@
             document.getElementById('recording-timer').style.display = 'none';
             document.getElementById('live-preview').style.display = 'none';
 
+            const bullets = recognizedText.trim()
+                ? recognizedText.trim().split(/[.!?]+/).filter(s => s.trim()).map(text => ({
+                    text: text.trim(),
+                    dueDate: null
+                }))
+                : [{text: 'Keine Sprache erkannt', dueDate: null}];
+
             const meeting = {
                 id: Date.now().toString(),
                 subject: 'Meeting vom ' + new Date().toLocaleDateString('de-DE'),
-                bullets: [
-                    {text: 'Wichtiger Punkt 1', dueDate: '26.03'},
-                    {text: 'Wichtiger Punkt 2', dueDate: null}
-                ]
+                bullets: bullets
             };
 
             state.meetings.push(meeting);
